@@ -1,0 +1,91 @@
+# Control-plane extension manifest — TEMPLATE.
+#
+# This file is not installable as-is. `scripts/install-extension.sh` renders it
+# to a gitignored `extension.toml`, substituting `__REPO_PATH__` with the
+# absolute path of your clone, then installs that:
+#
+#     ./scripts/install-extension.sh
+#
+# WHY THE PLACEHOLDER EXISTS — do not "simplify" it back to `~/...`.
+#
+# `[[sessions]] repo_path` must be an ABSOLUTE path. thurbox does not expand a
+# leading tilde there: `ExtensionDef::resolved_for_home()` substitutes the
+# `{home}` token but never calls `expand_tilde`, so `~/code/control-plane` is
+# taken literally and the session opens a directory whose name is the single
+# character `~`. That bug is unfixed as of this writing.
+#
+# `{home}` is substituted — but it resolves to the extension home
+# (`~/.config/thurbox/extensions/fleet`), not to your checkout. The session must
+# open the checkout, because it needs `registry/` and `orchestration/` in hand.
+#
+# A template cannot hardcode a path that exists on exactly one machine. Hence
+# `__REPO_PATH__`, rendered at install time.
+#
+# thurbox lays down the [[files]] / [[symlinks]] under `home`, registers the
+# [[agents]] in agents.toml (existing entries are kept), then activates the
+# [[sessions]] and self-heals it if it is ever deleted. Turn it off with
+# `thurbox-cli extension deactivate fleet`.
+#
+# There are deliberately NO [[automations]]. The only scheduled candidate — the
+# registry sync — commits and pushes to `main`. That stays a manual
+# `./scripts/sync-registry.sh`, run by a human who can read the diff.
+
+name = "fleet"
+description = "Control-plane session: the repo map and thurbox orchestration"
+config_version = 1
+version = "1.0.0"                # this extension's own version; bump on changes
+min_thurbox_version = "0.113.0"  # needs the `extension install`/self-heal machinery
+# No `home`: defaults to `<config>/extensions/fleet` (override with --home).
+
+# --- agents registered in agents.toml (override the model by editing it) ------
+#
+# Mirrors the stock `claude` agent's id handling, so the session resumes and
+# forks by its pinned {id} rather than "the last session in this directory".
+
+[[agents]]
+name = "fleet"
+command = "claude"
+args = ["--model", "claude-opus-4-8"]
+resume_args = ["--resume", "{id}"]
+fork_args = ["--resume", "{id}", "--fork-session"]
+new_session_args = ["--session-id", "{id}"]
+
+# --- payload files laid down under home ---------------------------------------
+#
+# Only the standing context ships. The registry, playbooks and run logs stay in
+# the git checkout — they are versioned there, and `repos.generated.yaml` is
+# generated, so shipping a copy would immediately drift.
+
+[[files]]
+path = "FLEET.md"
+
+# --- context-file symlinks: surface FLEET.md to each CLI's convention ---------
+
+[[symlinks]]
+link = "CLAUDE.md"
+target = "FLEET.md"
+
+[[symlinks]]
+link = "AGENTS.md"
+target = "FLEET.md"
+
+[[symlinks]]
+link = "GEMINI.md"
+target = "FLEET.md"
+
+# --- runtime resources: ensured on activate, self-healed if deleted -----------
+#
+# A single long-lived session, so the control plane is always there to plan a
+# run, hold the log, and receive worker mail (`message send --to fleet`) — which
+# needs the lead to *be* a session, not an ad-hoc terminal.
+
+[[sessions]]
+name = "fleet"
+agent = "fleet"
+# The session opens your checkout, not the extension home: it needs registry/
+# and orchestration/ in hand, and the repo's SessionStart hook
+# (.claude/settings.json) fast-forwards main before any work starts.
+#
+# Rendered by scripts/install-extension.sh. See the header for why this is an
+# absolute path and not a `~`.
+repo_path = "__REPO_PATH__"
