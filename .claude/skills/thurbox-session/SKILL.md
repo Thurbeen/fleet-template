@@ -41,15 +41,15 @@ origin/main` before `session create`, or check that
 `session create` is **synchronous** — the tmux window is live when it returns.
 
 ```bash
-thurbox-cli session create --name <slug> \
+thurbox-cli session create --name 'Run exec automations off the TUI thread' \
   --repo-path /abs/path/to/repo \
-  --worktree-branch <branch> --base-branch main \
+  --worktree-branch fix/automation-exec-nonblocking --base-branch main \
   --json
 ```
 
 | Flag | Meaning |
 |---|---|
-| `--name` | 1–64 chars, no slashes, no leading `.` |
+| `--name` | 1–64 chars, no slashes, no leading `.`; spaces are fine — write an imperative sentence, not a slug |
 | `--repo-path` | absolute path to the **primary** repo |
 | `--worktree-branch` | create a git worktree on this branch |
 | `--base-branch` | base for the worktree (default `main`) |
@@ -58,6 +58,35 @@ thurbox-cli session create --name <slug> \
 | `--host` | remote host from `hosts.toml`; worktree + tmux live there |
 
 Capture the returned UUID — every later command keys off it.
+
+### Naming a session
+
+A session name is an **imperative summary of the work, in sentence case**. It
+says what the worker is being asked to do; it is not an identifier for it.
+
+```
+Run exec automations off the TUI thread     good
+Document the customization surface          good
+thurbox-automation-nonblocking              bad — a kebab slug, reads as an id
+Fix stuff                                   bad — says nothing
+```
+
+Spaces are allowed. `session create`, `session get --json`, and
+`message send --to` all round-trip a spaced name intact; any claim that names
+must be hyphenated is wrong. The rest of the rules follow from how the name is
+used:
+
+- **Imperative mood, sentence case.** Capitalize the first word only. Leave
+  identifiers in the casing they already have — `gh`, `TUI`, `extension.toml`.
+- **No repo prefix.** The repo is already on the session (`session get --json`,
+  field `cwd`) and in the run log. Repeating it spends the 64 characters twice.
+- **Quote it.** The name is a mailbox address — `message send --to 'Run exec
+  automations off the TUI thread'`. Unquoted, the shell splits it on spaces and
+  the send addresses something that isn't there.
+- **The branch is not the name.** `--worktree-branch` stays kebab-case and may
+  contain slashes (`fix/automation-exec-nonblocking`); `--name` may not.
+- **Keep it short.** The TUI's window list truncates. Two names that only differ
+  past the cut are the same name as far as the operator can see.
 
 ## 1a. Remote hosts (`--host`)
 
@@ -137,8 +166,9 @@ One session can span several repos. Two repeatable flags:
   material the worker should read but not modify.
 
 ```bash
-thurbox-cli session create --name cross-cut --repo-path /repos/a \
-  --agent claude --worktree-branch feat/x --base-branch main \
+thurbox-cli session create --name 'Add a license header to every source file' \
+  --repo-path /repos/a --agent claude \
+  --worktree-branch chore/license-header --base-branch main \
   --add-repo /repos/b@main --add-repo /repos/c@master \
   --add-dir /repos/reference \
   --json
@@ -204,14 +234,14 @@ environment, so a worker sends its own mail with no ids:
 
 ```bash
 # instruct the worker to finish with:
-thurbox-cli message send --to <lead-name-or-uuid> --kind result --body '<PR url or NOT_APPLICABLE>'
+thurbox-cli message send --to '<lead-name-or-uuid>' --kind result --body '<PR url or NOT_APPLICABLE>'
 ```
 
-The payload travels through the durable DB, never the pane. Drain it
-exactly-once from the lead:
+Quote the address: a name is a sentence with spaces in it. The payload travels
+through the durable DB, never the pane. Drain it exactly-once from the lead:
 
 ```bash
-thurbox-cli message inbox --for <lead> --claim --json
+thurbox-cli message inbox --for '<lead>' --claim --json
 ```
 
 **The control plane's own Claude IS a thurbox session** — it runs inside one, so

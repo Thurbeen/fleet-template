@@ -18,7 +18,11 @@ tweak, a license header, a README badge, a config migration.
 
 One worker session **per repo**, all with the same prompt shape.
 
-- **name** — `fleet-sweep-<repo>`.
+- **name** — the change, imperative and in sentence case, ending in the repo it
+  targets: `Add a license header to widgets`. A sweep runs one goal many times
+  and the name is a mailbox address, so a name that omits the repo is a name
+  every session in the wave shares. Bare repo name, no owner — `--name` takes no
+  slashes.
 - **repo / worktree** — that repo, fresh worktree off its default branch.
 - **prompt** — the generic goal + "adapt to this repo's stack; open a PR. If the
   change doesn't apply here, say so and stop." Either way it finishes by mailing

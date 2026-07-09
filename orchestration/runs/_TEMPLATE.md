@@ -9,14 +9,17 @@
 
 ## Sessions
 
+Name each session as an imperative sentence describing the work, in sentence
+case — no repo prefix, the repo has its own column.
+
 | Session name | Repo | Intent | Status | Artifact / PR |
 |---|---|---|---|---|
-| `fleet-...` | `owner/repo` | one line | running / done | link |
+| `Document the customization surface` | `owner/repo` | one line | running / done | link |
 
 ## Timeline
 
-- <time> — launched `fleet-...` against `owner/repo`.
-- <time> — drained the inbox; `fleet-...` reported …
+- <time> — launched `Document the customization surface` against `owner/repo`.
+- <time> — drained the inbox; that session reported …
 
 ## Outcome
 
