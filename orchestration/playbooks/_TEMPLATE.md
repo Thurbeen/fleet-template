@@ -16,7 +16,9 @@ to a single repo", "apply the same change across N repos").
 
 How to decompose the goal into thurbox sessions. For each session, define:
 
-- **name** — hyphenated, no spaces, ≤ 64 chars (e.g. `fleet-<slug>`).
+- **name** — an imperative sentence in sentence case, ≤ 64 chars, no slashes
+  (e.g. `Document the customization surface`). Spaces are fine. Don't prefix it
+  with the repo; the session and the run log both carry that already.
 - **repo / worktree** — the target repo and branch the worker operates on.
 - **prompt** — self-contained; the worker never sees this conversation.
 - **done when** — the acceptance signal (a PR, a passing test, a file).

@@ -16,7 +16,9 @@
 
 One worker session.
 
-- **name** — `fleet-ship-<slug>`.
+- **name** — the change, imperative and in sentence case:
+  `Cache the registry sync between runs`. No repo prefix — the session already
+  carries the repo, and so does the run log.
 - **repo / worktree** — `repo`, fresh worktree off `base`.
 - **prompt** — self-contained: the goal, acceptance criteria, "open a PR when
   done, then mail the PR URL back". Point the worker at the repo's own

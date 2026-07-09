@@ -116,12 +116,13 @@ file means editing those four lines too. You do not have to: renaming the
 session does not require renaming the file, and `FLEET.md` is a fine name for
 the standing context of a session called anything.
 
-There is a seventh appearance of `fleet`, and it is **not** coupled to the other
-six: the worker naming convention `fleet-<slug>` in `orchestration/playbooks/`
-and `orchestration/runs/_TEMPLATE.md`. Worker session names are free-form
-strings that nothing resolves. Rename them for consistency or leave them —
-nothing breaks either way. The same goes for this README's own prose: it is
-documentation, so it follows a rename rather than driving one.
+**Worker** session names are not among the six and not coupled to them. They are
+free-form strings that nothing resolves, and by the convention in
+`orchestration/playbooks/` and `orchestration/runs/_TEMPLATE.md` each is an
+imperative sentence describing the work — `Document the customization surface` —
+carrying neither a `fleet` prefix nor a repo prefix. A rename never reaches
+them. The same goes for this README's own prose: it is documentation, so it
+follows a rename rather than driving one.
 
 ## Layout
 
@@ -198,14 +199,17 @@ work and its PR arrives conflicting.
 A worker finishes by mailing its result to the lead:
 
 ```bash
-thurbox-cli message send --to <lead> --kind result --body '<PR url or NOT_APPLICABLE>'
+thurbox-cli message send --to '<lead>' --kind result --body '<PR url or NOT_APPLICABLE>'
 ```
 
 and the lead drains the inbox exactly-once:
 
 ```bash
-thurbox-cli message inbox --for <lead> --claim --json
+thurbox-cli message inbox --for '<lead>' --claim --json
 ```
+
+Quote the address. A session name is an imperative sentence, spaces and all, so
+an unquoted one is split by the shell and mails somewhere else.
 
 This beats polling `gh pr list` on three counts. It is **exact** — the worker
 names its own artifact instead of you inferring it from a PR list that may
