@@ -1,0 +1,4 @@
+# Rendered from extension.toml.in by scripts/install-extension.sh. It carries
+# this clone's absolute path, which is true only on one machine — see the header
+# of extension.toml.in for why the path cannot be a `~`.
+/extension.toml

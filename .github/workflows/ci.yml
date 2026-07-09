@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+# Cancel a superseded run when a new commit lands on the same PR.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  # dorny/paths-filter reads the PR's changed files via the API.
+  pull-requests: read
+
+jobs:
+  # Classify the PR diff so a docs-only change skips shell/yaml jobs. Job-level
+  # `if:` (not workflow-level `paths-ignore:`) keeps the always-run `all-checks`
+  # gate reporting a status — a skipped job counts as success.
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      shell: ${{ steps.filter.outputs.shell }}
+      yaml: ${{ steps.filter.outputs.yaml }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        id: filter
+        with:
+          # Every filter includes this workflow so editing it re-runs all jobs.
+          filters: |
+            shell:
+              - '**/*.sh'
+              - '.github/workflows/ci.yml'
+            yaml:
+              - '**/*.yaml'
+              - '**/*.yml'
+              - '.github/workflows/ci.yml'
+
+  shellcheck:
+    name: Shellcheck
+    needs: changes
+    if: needs.changes.outputs.shell == 'true'
+    runs-on: ubuntu-latest # shellcheck is preinstalled on the runner
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - run: shellcheck scripts/*.sh
+
+  yaml:
+    name: YAML
+    needs: changes
+    if: needs.changes.outputs.yaml == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - name: Every YAML file parses
+        run: |
+          python3 - <<'PY'
+          import glob, sys, yaml
+          bad = False
+          for f in glob.glob('**/*.y*ml', recursive=True):
+              try:
+                  with open(f) as fh:
+                      list(yaml.safe_load_all(fh))
+              except Exception as e:
+                  print(f"::error file={f}::{e}")
+                  bad = True
+          sys.exit(1 if bad else 0)
+          PY
+      - name: Registry has the expected shape
+        run: |
+          python3 - <<'PY'
+          import yaml
+          d = yaml.safe_load(open('registry/repos.generated.yaml'))
+          owners = d.get('owners')
+          # A fresh clone ships an empty registry — valid, just not yet synced.
+          assert isinstance(owners, list), "owners missing or not a list"
+          assert isinstance(d.get('totals', {}).get('repos'), int), "totals.repos missing"
+          for o in owners:
+              assert o.get('name') and isinstance(o.get('repos'), list), f"bad owner: {o}"
+          print(f"registry ok: {d['totals']['repos']} repos across {len(owners)} owners")
+          PY
+
+  # Single required status check. Every job feeds this gate; a branch ruleset
+  # requires only "All Checks", so adding or removing jobs never needs a
+  # ruleset change.
+  all-checks:
+    name: All Checks
+    if: always()
+    needs:
+      - changes
+      - shellcheck
+      - yaml
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all checks passed
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]] || \
+             [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more checks failed or were cancelled"
+            exit 1
+          fi
+          echo "All checks passed"
