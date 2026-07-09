@@ -8,12 +8,19 @@
 #
 # WHY THE PLACEHOLDER EXISTS — do not "simplify" it back to `~/...`.
 #
-# `[[sessions]] repo_path` must be an ABSOLUTE path. thurbox does not expand a
-# leading tilde there: `ExtensionDef::resolved_for_home()` substitutes the
-# `{home}` token but never calls `expand_tilde`, so `~/code/control-plane` is
-# taken literally and the session opens a directory whose name is the single
-# character `~`. That bug is unfixed as of this writing.
+# `[[sessions]] repo_path` must be an ABSOLUTE path, and two things keep it that
+# way — one historical, one permanent.
 #
+# Historically, thurbox did not expand a leading tilde there:
+# `ExtensionDef::resolved_for_home()` substituted the `{home}` token but never
+# called `expand_tilde`, so `~/code/control-plane` was taken literally and the
+# session opened a directory whose name is the single character `~`. That bug is
+# fixed — Thurbeen/thurbox#782, first shipped in 0.174.2. But
+# `min_thurbox_version` below is 0.113.0, which predates the fix: on any thurbox
+# from 0.113.0 through 0.174.1 a tilde still lands the session in a directory
+# named `~`. This manifest has to work across the whole range it supports.
+#
+# Permanently, and independently of that bug: no token spells "my clone".
 # `{home}` is substituted — but it resolves to the extension home
 # (`~/.config/thurbox/extensions/fleet`), not to your checkout. The session must
 # open the checkout, because it needs `registry/` and `orchestration/` in hand.

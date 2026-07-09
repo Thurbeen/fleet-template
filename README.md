@@ -27,6 +27,102 @@ From a fresh clone:
 
 Requires `gh` (authenticated), `jq`, and `thurbox-cli`.
 
+## Customizing
+
+Three things are yours to change, in descending order of how likely you are to
+want to:
+
+1. **`registry/owners.txt`** — required, and covered in the Quickstart above. It
+   is the only edit a fresh clone actually needs.
+2. **The agent and model** — optional.
+3. **The name `fleet`** — optional, and leaving it alone is a fine answer.
+
+### The agent and model
+
+`extension.toml.in`'s `[[agents]]` block pins the model:
+
+```toml
+[[agents]]
+name = "fleet"
+command = "claude"
+args = ["--model", "claude-opus-4-8"]
+```
+
+Edit that block and re-run `./scripts/install-extension.sh`. `command` can point
+at a different CLI entirely — `codex`, say — as long as the `resume_args`,
+`fork_args`, and `new_session_args` beneath it still carry thurbox's `{id}`
+token. That token is what makes the session resume by its own id instead of by
+"the last session in this directory".
+
+Editing `agents.toml` after install works too, and takes effect immediately: a
+reinstall keeps existing entries, so your edit is not clobbered. But the
+manifest is where the entry is *generated* from, and that makes it the durable
+place. An `agents.toml` edit lives on one machine and does not survive
+`extension uninstall`; a manifest edit is committed, and every install of your
+control plane gets it.
+
+### The name `fleet`
+
+`fleet` names the **session**, not you and not your repo. Your control plane can
+be called `mission-control` while the session it runs is still `fleet` — nothing
+reads the repo name. Keeping `fleet` is a perfectly good default. Renaming is
+optional, not a setup step you have overlooked.
+
+If you do rename it, the name is not in one place. It is in six, and they move
+together:
+
+```
+extension.toml.in
+  name = "fleet"                (1) the extension id — the argument to every
+                                    `thurbox-cli extension ...` command, so it
+                                    also appears in the three hints
+                                    scripts/install-extension.sh prints on exit
+                                    and in its own header comment
+  [[agents]] name = "fleet"     (2) the agent id, registered in agents.toml
+  [[sessions]] name  = "fleet"  (3) the session's name
+  [[sessions]] agent = "fleet"      ... bound to the agent in (2)
+
+derived, not edited
+  ~/.config/thurbox/extensions/fleet/
+                                (4) the extension home. The manifest has no
+                                    `home` key, so thurbox derives it from (1)
+
+prose that has to agree
+  FLEET.md                      (5) the [[files]] payload, whose text opens
+                                    "You are the **fleet** session"
+  --to fleet / --for fleet      (6) the mailbox address workers send to and the
+                                    lead drains. In FLEET.md, in this README,
+                                    and in extension.toml.in's header comment
+```
+
+Only (4) is not a line you edit; it follows from (1). The rest are.
+
+The failure mode is a **partial rename**. Change (1) and the extension installs
+as `mission-control`; leave (6) and every worker brief still mails its result
+`--to fleet`. Whether that send bounces or lands in an inbox nobody drains, the
+lead never sees it — the worker did the work, the PR exists, and nothing
+surfaces it. So:
+
+1. Change all six.
+2. If the extension is already installed under the old name, uninstall it first:
+   `thurbox-cli extension uninstall fleet`. Skip this and you get two registered
+   extensions and two self-healing sessions, each faithfully recreating itself.
+3. `./scripts/install-extension.sh`
+4. `thurbox-cli extension status <newname>` to confirm.
+
+`FLEET.md`'s **filename** is a separate question. The manifest names it four
+times — one `[[files]] path` and three `[[symlinks]] target`s — so renaming the
+file means editing those four lines too. You do not have to: renaming the
+session does not require renaming the file, and `FLEET.md` is a fine name for
+the standing context of a session called anything.
+
+There is a seventh appearance of `fleet`, and it is **not** coupled to the other
+six: the worker naming convention `fleet-<slug>` in `orchestration/playbooks/`
+and `orchestration/runs/_TEMPLATE.md`. Worker session names are free-form
+strings that nothing resolves. Rename them for consistency or leave them —
+nothing breaks either way. The same goes for this README's own prose: it is
+documentation, so it follows a rename rather than driving one.
+
 ## Layout
 
 ```
@@ -151,12 +247,21 @@ playbooks, and run logs stay in your checkout, where they are versioned.
 
 ### Why the manifest is a `.in` file
 
-`[[sessions]] repo_path` must be an **absolute path** to your clone. thurbox
-does not expand `~` there: `ExtensionDef::resolved_for_home()` substitutes the
-`{home}` token but never calls `expand_tilde`, so a leading tilde is taken
-literally and the session lands in a directory named `~`. And `{home}` itself
-resolves to the *extension home*, not your checkout — while the session must
-open the checkout, because it needs `registry/` and `orchestration/` in hand.
+`[[sessions]] repo_path` must be an **absolute path** to your clone, for two
+reasons — one historical, one permanent.
+
+Older thurbox did not expand `~` there: `ExtensionDef::resolved_for_home()`
+substituted the `{home}` token but never called `expand_tilde`, so a leading
+tilde was taken literally and the session landed in a directory named `~`.
+[thurbox#782](https://github.com/Thurbeen/thurbox/pull/782) fixed that, first
+shipping in 0.174.2. But `min_thurbox_version` here is `0.113.0`, so anyone on a
+thurbox between that and the fix still hits the bug, and the manifest has to
+work across the whole range it claims to support.
+
+Independently of that bug, no token spells "my clone". `{home}` is substituted,
+but it resolves to the *extension home*, not your checkout — while the session
+must open the checkout, because it needs `registry/` and `orchestration/` in
+hand.
 
 A template cannot hardcode a path that exists on one machine. So the manifest
 ships as `extension.toml.in` with a `__REPO_PATH__` placeholder, and
